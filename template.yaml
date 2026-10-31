@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: ApplyReady backend
+
+Parameters:
+  FrontendOrigin:
+    Type: String
+    Default: http://127.0.0.1:5174
+
+Resources:
+  ApplyReadyApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref FrontendOrigin
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 5
+        ThrottlingRateLimit: 2
+
+  ApplyReadyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .deploy/api/
+      Handler: lambda.handler
+      Runtime: nodejs22.x
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          NODE_ENV: production
+          AI_PROVIDER: meta
+          AI_MODEL: muse-spark-1.3
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ApplyReadyApi
+            Path: /api/health
+            Method: GET
+        Generate:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ApplyReadyApi
+            Path: /api/generate
+            Method: POST
+
+Outputs:
+  ApiUrl:
+    Value: !Sub https://${ApplyReadyApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
+  FunctionName:
+    Value: !Ref ApplyReadyFunction
